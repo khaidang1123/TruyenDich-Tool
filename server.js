@@ -82,7 +82,7 @@ app.post('/scrape', async (req, res) => {
 
                         const chapter_title = $('.chapter-title').attr('title').replace(/.*Chương \d+: /, '').trim();
                         console.log(index)
-                        
+
                         const dataInsertChapter = {
                             content: chapter_content.html(),
                             coins: 0,
@@ -109,15 +109,14 @@ app.post('/scrape', async (req, res) => {
                 } catch (error) {
                     console.log("Lỗi kết nối... Đợi chút! Đang cào dữ liệu lại...")
                     retryCount++;
+                    if (retryCount == maxRetries) {
+                        res.status(500).send('Failed to scrape chapter data after multiple retries.');
+                    }
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
             }
 
-            if (retryCount === maxRetries) {
-                res.status(500).send('Failed to scrape chapter data after multiple retries.');
-            } else {
-                res.status(200).send('Đã cào hết các chương. Kiểm tra file json để xem kết quả');
-            }
+            res.status(200).send('Đã cào hết các chương. Kiểm tra file json để xem kết quả');
 
         } else {
             res.send('URL không đúng hoặc không đọc được dữ liệu');
