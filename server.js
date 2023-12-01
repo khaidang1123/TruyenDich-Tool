@@ -7,30 +7,28 @@ const speakingurl = require('speakingurl');
 const app = express();
 
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
 
+const fixedUrl = 'https://truyenfull.vn/tu-cam-270192';
 
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html');
-});
-
-app.post('/scrape', async (req, res) => {
+async function scrapeData() {
     try {
-        const url = req.body.url;
+        const url = fixedUrl;
         let scrapeData = true;
         const data = [];
         const maxRetries = 10;
         let retryCount = 0;
-
+        
         const dataBook = await request(url);
         const C$ = cheerio.load(dataBook);
         let book_name = C$('h3.title').text();
-
+        
         if (book_name) {
             var index = 1;
-            let bookID = ""
+            let bookID = "";
             const slug = speakingurl(book_name, { separator: '-' });
             let exist = false;
+            let fixedChapterFrom = 0
+            let dataChapter = []
 
             const response = await fetch(`http://localhost:3001/api/books/${slug}`);
             const item = await response.json();
@@ -38,13 +36,14 @@ app.post('/scrape', async (req, res) => {
             fs.mkdirSync(`./data/${slug}`, { recursive: true });
 
             if (item && item.book) {
-                // Existing book, get the last chapter number
+                // Đã tồn tại book, chỉ cần cập nhật chương
                 let last_chapter_number = Number(item.last_chapter[0].chapter_number);
                 index = ++last_chapter_number;
                 bookID = item.book._id
                 exist = true
+                fixedChapterFrom = index
             } else {
-                // New book, insert book data (add your logic here)
+                // Chưa có book, cập nhật chương ngay
                 bookID = mongoObjectId()
                 const dataInsertBook = {
                     _id: {
@@ -95,12 +94,12 @@ app.post('/scrape', async (req, res) => {
                             chapter_number
                         }
 
-                        data.push(dataInsertChapter);
+                        dataChapter.push(dataInsertChapter);
 
                         if (exist) {
-                            fs.writeFileSync(`./data/${slug}/chapters-continue.json`, JSON.stringify(data));
+                            fs.writeFileSync(`./data/${slug}/chapters-${fixedChapterFrom}.json`, JSON.stringify(dataChapter));
                         } else {
-                            fs.writeFileSync(`./data/${slug}/chapters.json`, JSON.stringify(data));
+                            fs.writeFileSync(`./data/${slug}/chapters.json`, JSON.stringify(dataChapter));
                         }
                     }
 
@@ -110,24 +109,22 @@ app.post('/scrape', async (req, res) => {
                     console.log("Lỗi kết nối... Đợi chút! Đang cào dữ liệu lại...")
                     retryCount++;
                     if (retryCount == maxRetries) {
-                        res.status(500).send('Failed to scrape chapter data after multiple retries.');
+                        process.exit(1)
                     }
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
             }
 
-            res.status(200).send('Đã cào hết các chương. Kiểm tra file json để xem kết quả');
+            // Cào xong...
 
         } else {
-            res.send('URL không đúng hoặc không đọc được dữ liệu');
+            process.exit(1)
         }
 
     } catch (error) {
-        console.error('Error scraping data:', error);
-        res.status(500).send('Error scraping data.');
+        process.exit(1)
     }
-});
-
+}
 
 function mongoObjectId() {
     var timestamp = (new Date().getTime() / 1000 | 0).toString(16);
@@ -139,4 +136,6 @@ function mongoObjectId() {
 const port = 3005;
 app.listen(port, () => {
     console.log(`Server is running at http://localhost:${port}`);
+    
+    scrapeData();
 });
