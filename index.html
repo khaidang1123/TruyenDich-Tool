@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Scraping Form</title>
+</head>
+
+<body>
+    <h2>Cào dữ liệu</h2>
+    <form action="/scrape" method="post">
+        <label for="urlInput">URL:</label>
+        <input type="text" id="urlInput" name="url" placeholder="Enter URL" required>
+        <br><br>
+        <input type="submit" value="Cào">
+        <p id="progress"></p>
+    </form>
+</body>
+
+</html>
